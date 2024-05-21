@@ -26,14 +26,13 @@ const generateRefreshAndAccessToken = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   // 1 get user details from frontend
   const { username, email, fullName, password } = req.body;
-
   //  2 validation
   if (
     [username, email, fullName, password].some((field) => field?.trim() === "")
   ) {
     throw new ApiError(400, "All fields are required");
   }
-
+    
   // 3 check if user already exists
 
   const existedUser = await User.findOne({
@@ -45,7 +44,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   //4 check for images,check for avatar
-
   const avatarLocalPath = req.files?.avatar[0]?.path;
   //   const coverImageLocalPath= req.files?.coverImage[0]?.path;
   let coverImageLocalPath = "";
@@ -53,25 +51,19 @@ const registerUser = asyncHandler(async (req, res) => {
     req.files &&
     Array.isArray(req.files.coverImage) &&
     req.files.coverImage.length > 0
-  ) {
+  ) { 
     coverImageLocalPath = req.files.coverImage[0].path;
   }
-
   if (!avatarLocalPath) {
     throw new ApiError(400, "avatar is a required field");
   }
-
   // 5 upload them to cloudinary
-
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
   if (!avatar) {
     throw new ApiError(400, "avatar file is required");
   }
-
   // 6 create user object -create entry in db
-
   const user = await User.create({
     fullName,
     username: username.toLowerCase(),
@@ -80,12 +72,11 @@ const registerUser = asyncHandler(async (req, res) => {
     avatar: avatar.url,
     coverImage: coverImage?.url || "",
   });
-
+ 
   // 7 remove password and refresh token field from response
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
-
   // 8 check for user creation
   if (!createdUser) {
     throw new ApiError(500, "user registration failed");
@@ -100,7 +91,6 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   // 1) req body -> data from user
   const { username, email, password } = req.body;
-
   if (!(username || email)) {
     throw new ApiError(400, "username or email missing");
   }
@@ -243,23 +233,24 @@ const getCurrentUser = asyncHandler(async(req,res)=>{
 })
 
 const updateAccountDetails=asyncHandler(async(req,res)=>{
-   const {fullName,email}= req.body;
-
-   if(!fullName || !email){
-    throw new ApiError(400,"All feilds are required");
-   }
+   const {username,fullName,email,description}= req.body;
+          // if(!username || !fullName || !email || !description){
+          //           throw new ApiError(400,"All feilds are required");
+          //    }
 
    const user = await User.findByIdAndUpdate(req.user?._id,{
           $set:{
              fullName,
-             email
+             email,
+             description,
+             username
           } 
    },{
     new:true
    }).select("-password")
  
-   return res.status(200).json(new ApiResponse(200,user,"fullName and email updated Successfully"))
-
+   return res.status(200).json(new ApiResponse(200,user,"user details updated Successfully"))
+    
 })
 
 //todo delete old image (add in utils)
@@ -303,15 +294,18 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
    })
 
    const getUserChannelProfile=asyncHandler(async(req,res)=>{
-          const {username} = req.params;
+          const {channelId} = req.params;
 
-          if(!username?.trim()){
+          // if(!username?.trim()){
+          //   throw new ApiError(400,"user is missing");
+          // }
+          if(!channelId){
             throw new ApiError(400,"user is missing");
           }
 
           const channel = await User.aggregate([
             {
-              $match:{username:username?.toLowerCase()}
+              $match:{_id:new mongoose.Types.ObjectId(channelId)}
             },
             {
               $lookup:{
@@ -419,4 +413,16 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
           
    })
 
-export { registerUser, loginUser, logOutUser, refreshAccessToken ,changeCurrentPassword , getCurrentUser , updateAccountDetails , updateUserAvatar , updateUserCoverImage , getUserChannelProfile , getWatchHistory};
+   const getUserById = asyncHandler(async(req,res)=>{
+               const {channelId} = req.params;
+
+               const user = await User.findById(channelId).select("-password -refreshToken -watchHistory ") ;
+               if(!user){
+                throw new ApiError(400,"wrong user id") ;
+             }
+      
+             return res.status(200).json(new ApiResponse(200,user,"user fetched successfully"))
+
+   })
+
+export {getUserById, registerUser, loginUser, logOutUser, refreshAccessToken ,changeCurrentPassword , getCurrentUser , updateAccountDetails , updateUserAvatar , updateUserCoverImage , getUserChannelProfile , getWatchHistory};

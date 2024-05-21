@@ -12,10 +12,26 @@ const getVideoComments = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const getComments = await Comment.aggregate([
+    {$match: {
+       video: new mongoose.Types.ObjectId(videoId)
+    }},
     {
-      $match: {
-        video: new mongoose.Types.ObjectId(videoId),
-      },
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner_details"
+      }
+    },
+    {
+      $project: {
+          owner:1,
+          content:1,
+          'owner_details.avatar':1,
+           'owner_details.fullName':1,
+        createdAt:1,
+        video:1
+      }
     },
     {
       $skip: skip,
@@ -89,7 +105,6 @@ const updateComment = asyncHandler(async (req, res) => {
 const deleteComment = asyncHandler(async (req, res) => {
   // TODO: delete a comment
   const {commentId} = req.params;
-
   const  deleteComment = await Comment.findByIdAndDelete(commentId);
 
   if(!deleteComment){

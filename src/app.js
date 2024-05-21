@@ -20,7 +20,7 @@ app.use(
 app.use(express.json({ limit: "16kb" }));
 
 //url data
-app.use(express.urlencoded({ extended: true, limit: "6kb" }));
+app.use(express.urlencoded({ extended: true, limit: "15kb" }));
 
 //serve static files
 app.use(express.static("public"));
